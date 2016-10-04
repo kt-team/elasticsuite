@@ -42,6 +42,14 @@ class Full extends Indexer
 
         $this->addIsVisibleInStoreFilter($select, $storeId);
 
+        $rootCategory_id = $this->storeManager->getStore($storeId)->getRootCategoryId();
+        $select->join(['cp'=>$this->getTable('catalog_category_product') ], 'cp.product_id = e.entity_id',[])
+        ->joinInner(
+            ['cce' => $this->getTable('catalog_category_entity')],
+            'cce.entity_id = cp.category_id and cce.path like \'1/'.$rootCategory_id.'/%\'',
+            []
+        );
+
         if ($productIds !== null) {
             $select->where('e.entity_id IN (?)', $productIds);
         }
@@ -51,22 +59,6 @@ class Full extends Indexer
             ->order('e.entity_id');
 
         return $this->connection->fetchAll($select);
-    }
-
-    /**
-     * Retrieve products relations by childrens
-     *
-     * @param array $childrenIds The product ids being reindexed
-     *
-     * @return array
-     */
-    public function getRelationsByChild($childrenIds)
-    {
-        $select = $this->getConnection()->select()
-            ->from($this->resource->getTableName('catalog_product_relation'), 'parent_id')
-            ->where('child_id IN(?)', $childrenIds);
-
-        return $this->getConnection()->fetchCol($select);
     }
 
     /**
@@ -101,5 +93,21 @@ class Full extends Indexer
             ->where('visibility.category_id = ?', $rootCategoryId);
 
         return $this;
+    }
+
+    /**
+     * Retrieve products relations by childrens
+     *
+     * @param array $childrenIds The product ids being reindexed
+     *
+     * @return array
+     */
+    public function getRelationsByChild($childrenIds)
+    {
+        $select = $this->getConnection()->select()
+            ->from($this->resource->getTableName('catalog_product_relation'), 'parent_id')
+            ->where('child_id IN(?)', $childrenIds);
+
+        return $this->getConnection()->fetchCol($select);
     }
 }

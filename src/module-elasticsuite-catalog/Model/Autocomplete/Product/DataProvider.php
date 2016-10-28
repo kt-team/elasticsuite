@@ -94,14 +94,6 @@ class DataProvider implements DataProviderInterface
     }
 
     /**
-     * @return string
-     */
-    public function getType()
-    {
-        return $this->type;
-    }
-
-    /**
      * {@inheritDoc}
      */
     public function getItems()
@@ -115,6 +107,39 @@ class DataProvider implements DataProviderInterface
         }
 
         return $result;
+    }
+
+    /**
+     * Suggested products collection.
+     * Returns null if no suggested search terms.
+     *
+     * @return \Smile\ElasticsuiteCatalog\Model\ResourceModel\Product\Fulltext\Collection|null
+     */
+    private function getProductCollection()
+    {
+        $productCollection = null;
+        $suggestedTerms = $this->getSuggestedTerms();
+        $terms          = [$this->queryFactory->get()->getQueryText()];
+
+        if (!empty($suggestedTerms)) {
+            $terms = array_merge($terms, $suggestedTerms);
+        }
+
+        /** @var \Smile\ElasticsuiteCatalog\Model\ResourceModel\Product\Fulltext\Collection $productCollection */
+        $productCollection = $this->productCollectionFactory->create();
+        $productCollection->addSearchFilter($terms);
+        $productCollection->setPageSize($this->getResultsPageSize());
+        $productCollection
+            ->addUrlRewrite()
+            ->addAttributeToSelect('name')
+            ->addAttributeToSelect('small_image')
+            ->addPriceData();
+
+        if (!$this->configurationHelper->isShowOutOfStock()) {
+            $productCollection->addIsInStockFilter();
+        }
+
+        return $productCollection;
     }
 
     /**
@@ -135,37 +160,6 @@ class DataProvider implements DataProviderInterface
     }
 
     /**
-     * Suggested products collection.
-     * Returns null if no suggested search terms.
-     *
-     * @return \Smile\ElasticsuiteCatalog\Model\ResourceModel\Product\Fulltext\Collection|null
-     */
-    private function getProductCollection()
-    {
-        $productCollection = null;
-        $suggestedTerms = $this->getSuggestedTerms();
-        $terms          = [$this->queryFactory->get()->getQueryText()];
-
-        if (!empty($suggestedTerms)) {
-            $terms = array_merge($terms, $suggestedTerms);
-        }
-
-        $productCollection = $this->productCollectionFactory->create();
-        $productCollection->addSearchFilter($terms);
-        $productCollection->setPageSize($this->getResultsPageSize());
-        $productCollection
-            ->addAttributeToSelect('name')
-            ->addAttributeToSelect('small_image')
-            ->addPriceData();
-
-        if (!$this->configurationHelper->isShowOutOfStock()) {
-            $productCollection->addIsInStockFilter();
-        }
-
-        return $productCollection;
-    }
-
-    /**
      * Retrieve number of products to display in autocomplete results
      *
      * @return int
@@ -173,5 +167,13 @@ class DataProvider implements DataProviderInterface
     private function getResultsPageSize()
     {
         return $this->configurationHelper->getMaxSize($this->getType());
+    }
+
+    /**
+     * @return string
+     */
+    public function getType()
+    {
+        return $this->type;
     }
 }

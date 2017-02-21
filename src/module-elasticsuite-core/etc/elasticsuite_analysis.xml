@@ -49,6 +49,7 @@
         <filter name="standard" type="stemmer" language="fr">
             <language>french</language>
         </filter>
+        <filter name="standard" type="russian_morphology" language="ru" />
         <filter name="elision" type="elision" language="fr">
             <articles>["l", "m", "t", "qu", "n", "s", "j"]</articles>
         </filter>

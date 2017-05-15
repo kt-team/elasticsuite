@@ -27,6 +27,8 @@ class FilterList extends \Magento\Catalog\Model\Layer\FilterList
      */
     const BOOLEAN_FILTER = 'boolean';
 
+    protected $_loadedFilters = [];
+
     /**
      * {@inheritDoc}
      */
@@ -45,5 +47,28 @@ class FilterList extends \Magento\Catalog\Model\Layer\FilterList
         }
 
         return $filterClassName;
+    }
+
+
+    public function getEnsureFilters(\Magento\Catalog\Model\Layer $layer, array $attributeCodes = [])
+    {
+        $toAdd = array_diff($attributeCodes, $this->_loadedFilters);
+
+        if (count($toAdd)) {
+            if (!isset($this->filters[-1])) {
+                $this->filters = [
+                    -1 => $this->objectManager->create($this->filterTypes[self::CATEGORY_FILTER], ['layer' => $layer]),
+                ];
+                $this->_loadedFilters[] = 'category';
+            }
+
+            foreach ($this->filterableAttributes->getSpecificList($toAdd) as $attribute) {
+                $this->_loadedFilters[] = $attribute->getAttributeCode();
+                $this->filters[$attribute->getPosition()*1000+$attribute->getId()] = $this->createAttributeFilter($attribute, $layer);
+            }
+            ksort($this->filters);
+        }
+
+        return $this->filters;
     }
 }

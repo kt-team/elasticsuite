@@ -30,7 +30,13 @@ class Navigation extends \Magento\LayeredNavigation\Block\Navigation
      */
     protected function _prepareLayout()
     {
-        parent::_prepareLayout();
+        $this->renderer = $this->getChildBlock('renderer');
+        $attributeCodes = array_keys($this->getRequest()->getParams());
+        foreach ($this->filterList->getEnsureFilters($this->_catalogLayer, $attributeCodes) as $filter) {
+            $filter->apply($this->getRequest());
+        }
+        $this->getLayer()->apply();
+
         $this->addFacets();
 
         return $this;
@@ -44,22 +50,29 @@ class Navigation extends \Magento\LayeredNavigation\Block\Navigation
     private function addFacets()
     {
         $productCollection = $this->getLayer()->getProductCollection();
-        $countBySetId      = $productCollection->getProductCountByAttributeSetId();
-        $totalCount        = $productCollection->getSize();
+        $countBySetId = $productCollection->getProductCountByAttributeSetId();
+        $totalCount = (int)$productCollection->getSize();
 
-        foreach ($this->filterList->getFilters($this->_catalogLayer) as $filter) {
-            try {
-                $attribute                = $filter->getAttributeModel();
-                $facetCoverageRate        = $attribute->getFacetMinCoverageRate();
-                $attributeCountCandidates = array_sum(array_intersect_key($countBySetId, $attribute->getAttributeSetInfo()));
-                $currentCoverageRate      = $attributeCountCandidates / $totalCount * 100;
+        if (count($countBySetId) == 0 ) return;
 
-                if ($facetCoverageRate < $currentCoverageRate) {
-                    $filter->addFacetToCollection();
-                }
-            } catch (\Exception $e) {
-                $filter->addFacetToCollection();
-            }
+        $connection = $productCollection->getSelect()->getAdapter();
+        $sqlCaseAttributeSet = $connection->getCaseSql('eea.attribute_set_id', $countBySetId, 0);
+
+        $selectSQL = "select ea.attribute_code from eav_attribute as ea
+  inner join catalog_eav_attribute as cea ON cea.attribute_id = ea.attribute_id
+where exists (
+    select 1 from eav_entity_attribute as eea
+
+      where eea.attribute_id = ea.attribute_id
+
+    HAVING sum(100*$sqlCaseAttributeSet/$totalCount)>cea.facet_min_coverage_rate
+    )";
+        //echo $selectSQL; exit;
+        
+        $attributeCodes = $connection->fetchCol($selectSQL);
+
+        foreach ($this->filterList->getEnsureFilters($this->_catalogLayer, $attributeCodes) as $filter) {
+            $filter->addFacetToCollection();
         }
     }
 }

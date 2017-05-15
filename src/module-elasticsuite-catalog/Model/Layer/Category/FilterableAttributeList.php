@@ -33,4 +33,23 @@ class FilterableAttributeList extends \Magento\Catalog\Model\Layer\Category\Filt
 
         return $collection;
     }
+
+    /**
+     * Retrieve list of filterable attributes
+     *
+     * @return array|\Magento\Catalog\Model\ResourceModel\Product\Attribute\Collection
+     */
+    public function getSpecificList(array $attributeCodes = [])
+    {
+        /** @var $collection \Magento\Catalog\Model\ResourceModel\Product\Attribute\Collection */
+        $collection = $this->collectionFactory->create();
+        $collection->setItemObjectClass('Magento\Catalog\Model\ResourceModel\Eav\Attribute')
+            ->addStoreLabel($this->storeManager->getStore()->getId())
+            ->setOrder('position', 'ASC');
+        $collection = $this->_prepareAttributeCollection($collection);
+        $collection->addFieldToFilter('attribute_code', ['in' => $attributeCodes]);
+        $collection->load();
+
+        return $collection;
+    }
 }
